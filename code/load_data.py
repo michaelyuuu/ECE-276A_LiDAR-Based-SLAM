@@ -1,7 +1,7 @@
 import numpy as np
 
 
-def load_dataset(dataset=21, data_dir="../data"):
+def load_dataset(dataset=20, data_dir="../data"):
   with np.load(f"{data_dir}/Encoders{dataset}.npz") as data:
     encoder_counts = data["counts"]
     encoder_stamps = data["time_stamps"]

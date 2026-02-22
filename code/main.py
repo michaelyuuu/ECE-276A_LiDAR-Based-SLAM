@@ -1,4 +1,5 @@
 
+import math as m
 import numpy as np
 import matplotlib.pyplot as plt; plt.ion()
 import time
@@ -45,24 +46,41 @@ phi = np.zeros(len(Vr))
 v = np.zeros(len(Vr))
 tau = 1/40
 v = (Vr + Vl) / 2
+grid_map = np.zeros((500,500))
+map_max = 60 # define map limit in (m)
+#mapping from world coordinates to grid coordinates
+grid_size = map_max / grid_map.shape[0] # m per grid cell
+observation_prior = np.log(80/20) # inverse of observation model
+maps_prior = 1 # map prior odd
+log_odds = observation_prior*maps_prior
 for i in range(len(v)-1):
-    # phi[i] = (Vr[i] - Vl[i]) / trackwidth
     x[i+1] = x[i] + tau * v[i] * np.sinc(yaw[i]*tau/2) * np.cos(phi[i]+yaw[i]*tau/2)
     y[i+1] = y[i] + tau * v[i] * np.sinc(yaw[i]*tau/2) * np.sin(phi[i]+yaw[i]*tau/2)
     phi[i+1] = phi[i] + yaw[i] * tau
+    #for every car passed grid cell, update log odds
+    grid_x = int((x[i+1]) / grid_size) + grid_map.shape[0]//2
+    grid_y = -int((y[i+1]) / grid_size) + grid_map.shape[1]//2
+    if 0 <= grid_x < grid_map.shape[0] and 0 <= grid_y < grid_map.shape[1]:
+        grid_map[grid_y, grid_x] += log_odds
+# recover grid map from log odds
+for i in range(grid_map.shape[0]):
+    for j in range(grid_map.shape[1]):
+        map_pmf = m.exp(grid_map[i,j]) / (1 + m.exp(grid_map[i,j]))
+        grid_map[i,j] = map_pmf
+# visualize grid map
+plt.figure()
+plt.imshow(grid_map, cmap='gray', vmin=-1, vmax=1)
+plt.title("Grid Map")
+plt.show(block=True)
+# for i in range(len(x)):
 # print(type(imud), len(imud) if hasattr(imud, "__len__") else "no len")
 # print(type(vicd), len(vicd) if hasattr(vicd, "__len__") else "no len")
 # print("imu_angular_velocity keys:", imu_angular_velocity.keys() if hasattr(imu_angular_velocity, "keys") else "no keys")
 plt.plot(x,y)
 #plot yaw as arrow on trajectory
 plt.quiver(x[::10], y[::10], np.cos(phi[::10]), np.sin(phi[::10]), scale=50, width=0.005)
-# plt.plot(yaw)
-# plt.plot(Vl)
-# plt.plot(Vr)
-# plt.plot(pitch)
-# plt.legend(["yaw", "Vl", "Vr"])
-plt.xlabel("Time")
-plt.ylabel("Angular Velocity (rad/s)")
-plt.title("IMU Angular Velocity")
+plt.xlabel("X (m)")
+plt.ylabel("Y (m)")
+plt.title("Trajectory with Yaw Arrows")
 plt.grid(True)
 plt.show(block=True)
