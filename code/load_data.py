@@ -1,7 +1,7 @@
 import numpy as np
 
 
-def load_dataset(dataset=20, data_dir="../data"):
+def load_dataset(dataset=21, data_dir="../data"):
   with np.load(f"{data_dir}/Encoders{dataset}.npz") as data:
     encoder_counts = data["counts"]
     encoder_stamps = data["time_stamps"]
@@ -19,11 +19,12 @@ def load_dataset(dataset=20, data_dir="../data"):
     imu_angular_velocity = data["angular_velocity"]
     imu_linear_acceleration = data["linear_acceleration"]
     imu_stamps = data["time_stamps"]
+    
 
   with np.load(f"{data_dir}/Kinect{dataset}.npz") as data:
     disp_stamps = data["disparity_time_stamps"]
     rgb_stamps = data["rgb_time_stamps"]
-  print(f"Loaded dataset {dataset} with {len(encoder_counts)} encoder counts, {len(lidar_ranges)} lidar scans, {len(imu_angular_velocity)} IMU readings, {len(disp_stamps)} disparity frames, and {len(rgb_stamps)} RGB frames.")
+    print(f"Loaded dataset {dataset} with {len(encoder_counts)} encoder counts, {len(lidar_ranges)} lidar scans, {len(imu_angular_velocity)} IMU readings, {len(disp_stamps)} disparity frames, and {len(rgb_stamps)} RGB frames.")
   return {
     "encoder_counts": encoder_counts,
     "encoder_stamps": encoder_stamps,
@@ -43,6 +44,10 @@ def load_dataset(dataset=20, data_dir="../data"):
 
 
 if __name__ == '__main__':
-  data = load_dataset(dataset=20, data_dir="../data")
+  data = load_dataset(dataset=20, data_dir="data")
   print("Loaded keys:", sorted(data.keys()))
+  print("Encoder counts shape:", data["encoder_counts"].shape)
+  print("Lidar ranges shape:", data["lidar_ranges"].shape)
+  print("Disparity stamps shape:", data["disp_stamps"].shape)
+  print("RGB stamps shape:", data["rgb_stamps"].shape)
 

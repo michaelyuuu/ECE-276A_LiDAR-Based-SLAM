@@ -104,7 +104,7 @@ def icp_one_iteration_scipy(src_pts, dst_pts, T_init, max_corr_dist, tree):
     variance = np.var(inlier_distances)
     return T_new, rmse, n_in, variance
 if __name__ == "__main__":
-    obj_name = 'liq_container' # drill or liq_container
+    obj_name = 'drill' # drill or liq_container
     num_pc = 4 # number of point clouds
     source_pc = to_o3d_pcd(read_canonical_model(obj_name))
     print("Source Point Cloud:", type(source_pc), "with", np.asarray(source_pc.points).shape[0], "points")  # *** Initial Transformation ***
