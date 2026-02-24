@@ -3,6 +3,9 @@ from utils import read_canonical_model, load_pc, visualize_icp_result
 import open3d as o3d
 import copy
 from scipy.spatial import KDTree
+import matplotlib
+matplotlib.use("TkAgg")  # 或 Qt5Agg
+import matplotlib.pyplot as plt
 from sklearn.neighbors import NearestNeighbors
 
 # parameters 
@@ -104,7 +107,7 @@ def icp_one_iteration_scipy(src_pts, dst_pts, T_init, max_corr_dist, tree):
     variance = np.var(inlier_distances)
     return T_new, rmse, n_in, variance
 if __name__ == "__main__":
-    obj_name = 'drill' # drill or liq_container
+    obj_name = 'liq_container' # drill or liq_container
     num_pc = 4 # number of point clouds
     source_pc = to_o3d_pcd(read_canonical_model(obj_name))
     print("Source Point Cloud:", type(source_pc), "with", np.asarray(source_pc.points).shape[0], "points")  # *** Initial Transformation ***
@@ -113,8 +116,8 @@ if __name__ == "__main__":
                             [0.0, 0, 1, 0], [0.0, 0.0, 0.0, 1.0]])
     target_pc = to_o3d_pcd(load_pc(obj_name, obj_num))
     tree = KDTree(np.asarray(target_pc.points))
-# for i in range(num_pc):
-#     target_pc = to_o3d_pcd(load_pc(obj_name, i))
+for i in range(num_pc):
+    target_pc = to_o3d_pcd(load_pc(obj_name, i))
     T_init = np.eye(4)
     best_rmse = float("inf")
     rmse = 5
@@ -153,6 +156,10 @@ if __name__ == "__main__":
     final_A = (best_T[:3, :3] @ target_pc_data.T).T + best_T[:3, 3]
     # visualize_icp_result(target_pc_data, target_pc_data, T)
     visualize_icp_result(source_pc_data, target_pc_data, best_T)
+    #save figure as jpg
+    plt.savefig(f"icp_result_{obj_name}_{obj_num}.jpg", dpi=300, bbox_inches='tight')
+    # o3d.io.write_image(f"icp_result_{obj_name}_{obj_num}.jpg", o3d.geometry.Image(np.asarray(visualize_icp_result(source_pc_data, target_pc_data, best_T))))
+
 
 
 
