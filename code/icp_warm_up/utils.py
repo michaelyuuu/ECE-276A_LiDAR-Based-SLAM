@@ -47,7 +47,21 @@ def visualize_icp_result(source_pc, target_pc, pose):
   target_pcd.paint_uniform_color([1, 0, 0])
 
   source_pcd.transform(pose)
+# Create a visualizer object
+  vis = o3d.visualization.Visualizer()
+  vis.create_window()
 
-  o3d.visualization.draw_geometries([source_pcd, target_pcd])
+  # Add your point clouds
+  vis.add_geometry(source_pcd)
+  vis.add_geometry(target_pcd)
+
+  # Access render options and change point size (default is usually 5.0)
+  opt = vis.get_render_option()
+  opt.point_size = 1.0  # Make this smaller or larger as needed
+
+  # Run the visualizer
+  vis.run()
+  vis.destroy_window()
+  # o3d.visualization.draw_geometries([source_pcd, target_pcd])
 
 

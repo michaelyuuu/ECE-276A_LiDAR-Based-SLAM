@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 from sklearn.neighbors import NearestNeighbors
 
 # parameters 
-obj_num = 0 # 0,1,2,3
+obj_num = 3 # 0,1,2,3
 
 def to_o3d_pcd(pc):
     # pc can be numpy (N,3) OR already an Open3D PointCloud
@@ -116,8 +116,8 @@ if __name__ == "__main__":
                             [0.0, 0, 1, 0], [0.0, 0.0, 0.0, 1.0]])
     target_pc = to_o3d_pcd(load_pc(obj_name, obj_num))
     tree = KDTree(np.asarray(target_pc.points))
-for i in range(num_pc):
-    target_pc = to_o3d_pcd(load_pc(obj_name, i))
+# for i in range(num_pc):
+#     target_pc = to_o3d_pcd(load_pc(obj_name, i))
     T_init = np.eye(4)
     best_rmse = float("inf")
     rmse = 5
