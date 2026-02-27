@@ -76,7 +76,7 @@ if __name__ == '__main__':
 
   idx_disp = align_closest(data["disp_stamps"],data["rgb_stamps"])
   # i as index to read disparity image
-  i = 1700
+  i = 522
   i_disp = idx_disp[i]
   img = cv2.imread(f"data/dataRGBD/RGB20/rgb20_{i}.png")
   img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
@@ -88,14 +88,14 @@ if __name__ == '__main__':
   depth = 1.03 / dd                     # depth (same units as dataset formula implies)
   H, W = disp.shape
   v, u = np.mgrid[0:H, 0:W].astype(np.float32)  # v=row (y), u=col (x)
-  K = np.array([[585.01, 0, 242.94],
-                [0, 585.01, 315.84],
+  K = np.array([[585.01, 0, 315.84],
+                [0, 585.01, 242.94],
                 [0, 0, 1]])
   dd = -0.00304 * disp + 3.31
   u_rgb = (526.37 * u + 19276.0 - 7877.07 * dd) / 585.01 #from disparity to rgb pixel coordinates, using the dataset's formula
   v_rgb = (526.37 * v + 16662.0) / 585.01   #from disparity to rgb pixel coordinates, using the dataset's formula
-  xc = depth *(u - 242.94) / 585.01 #from disparity to robot frame coordinates, using the dataset's formula
-  yc = depth *(v - 315.84) / 585.01 #from disparity to robot frame coordinates, using the dataset's formula
+  xc = depth *(u - 315.84) / 585.01 #from disparity to robot frame coordinates, using the dataset's formula
+  yc = depth *(v - 242.94) / 585.01 #from disparity to robot frame coordinates, using the dataset's formula
   zc = depth
   H_rgb, W_rgb = img.shape[:2]
 
@@ -108,7 +108,7 @@ if __name__ == '__main__':
 
   valid_mask = (u_rgb_int >= 0) & (u_rgb_int < W_rgb) & \
                (v_rgb_int >= 0) & (v_rgb_int < H_rgb) & \
-               (depth > 0)
+               (depth > 0) & (disp > 0)
 
   depth_aligned_to_rgb[v_rgb_int[valid_mask], u_rgb_int[valid_mask]] = depth[valid_mask]
 # optional: mask invalid
@@ -132,7 +132,7 @@ if __name__ == '__main__':
   zc = points_robot[2, :].reshape(H, W)
   cv = 315.84
   fsv = 585.05
-  tolerance = 0.3
+  tolerance = 0.1
   valid_mask = valid_mask & (zc < tolerance) 
   valid_xc = xc[valid_mask]
   valid_yc = yc[valid_mask]
