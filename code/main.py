@@ -260,7 +260,7 @@ T_robot_lidar[:2, 2] = np.array([0.13323, 0])
 
 step = 10
 close_step = 5 # Moved up for scope availability
-frame_num = 20
+frame_num = 1
 total_frames = len(lidar_stamps) - step*2
 # total_frames = 200
 for l in range(frame_num):
@@ -380,7 +380,7 @@ for l in range(frame_num):
                 
                 idex_prev_lidar = (prev_idx - 1) * step            
                 ranges_A = lidar_ranges[::ds, idex_prev_lidar]
-                mask_A = (ranges_A > 0.1) & (ranges_A < 20)
+                mask_A = (ranges_A > 0.3) & (ranges_A < 20)
                 A_loop = point_clouds[:, idex_prev_lidar, :][mask_A] 
                 tree_loop = KDTree(A_loop)
                 T_best_near, icp_ok, rmse = icp_loop(tree_loop, A_loop, B, T_init, max_corr = 2)     
@@ -451,19 +451,19 @@ for l in range(frame_num):
 
         T_world_lidar = T_robot_new @ T_robot_lidar 
         world_scan = (T_world_lidar[:2, :2] @ point_clouds[:,i+step,:].T).T + T_world_lidar[:2, 2]
-        # xc, yc, zc, colors = printimage(i+step)
-        # posc_world = T_robot_new[:2, :2] @ np.stack((xc, yc), axis=0) + T_robot_new[:2, 2].reshape(2, 1)
+        xc, yc, zc, colors = printimage(i+step)
+        posc_world = T_robot_new[:2, :2] @ np.stack((xc, yc), axis=0) + T_robot_new[:2, 2].reshape(2, 1)
         
-        # xc_world = posc_world[0, :] 
-        # yc_world = posc_world[1, :] 
+        xc_world = posc_world[0, :] 
+        yc_world = posc_world[1, :] 
         world_scan_x = world_scan[:, 0] 
         world_scan_y = world_scan[:, 1]
         car_px_x = T_world_lidar[0, 2] / grid_res + offset
         car_px_y = T_world_lidar[1, 2] / grid_res + offset
         points_px = np.vstack((world_scan_x / grid_res + offset, 
                         world_scan_y / grid_res + offset)).T.astype(np.int32)
-        # color_points_px = np.vstack((xc_world / grid_res + offset,
-        #                             yc_world / grid_res + offset)).T.astype(np.int32)
+        color_points_px = np.vstack((xc_world / grid_res + offset,
+                                    yc_world / grid_res + offset)).T.astype(np.int32)
         all_free = []  
         
         for grid_x, grid_y in points_px.astype(np.int32):
@@ -482,12 +482,13 @@ for l in range(frame_num):
             if 0 <= grid_x < grid_map.shape[0] and 0 <= grid_y < grid_map.shape[1]:
                 grid_map[grid_y, grid_x] += log_odds
         grid_map = np.clip(grid_map, -10, 10)
-        # for (px, py), c in zip(color_points_px, colors):
-        #     if 0 <= px < map_dim and 0 <= py < map_dim:
-        #         color_map[py, px] = c
-        #         color_count[py, px] += 1
+        for (px, py), c in zip(color_points_px, colors):
+            if 0 <= px < map_dim and 0 <= py < map_dim:
+                color_map[py, px] = c
+                color_count[py, px] += 1
     os.makedirs("result", exist_ok=True)
     os.makedirs(f"animation/dataset{dataset}", exist_ok=True)
+    os.makedirs(f"dataset{dataset}", exist_ok=True)
     grid_map_pmf = 1.0 / (1.0 + np.exp(-grid_map)) 
     # ==========================================================
     # 1. 繪製「重建前 (Unoptimized)」的 SLAM 地圖與軌跡
@@ -498,7 +499,7 @@ for l in range(frame_num):
     occupied_unopt = grid_map_pmf_unopt > 0.7      
     free_unopt     = grid_map_pmf_unopt < 0.3
     color_map_unopt = color_map.copy()
-    color_map_unopt[~free_unopt] = 0.0 # 把沒有走過的地方設為黑色
+    color_map_unopt[~free_unopt] = 0.0 
 
     # --- 圖 A: 重建前 (網格 + 軌跡 + 彩色地板) ---
     plt.figure(figsize=(10, 10))
@@ -519,7 +520,7 @@ for l in range(frame_num):
     plt.axis("off")
     #save figure to result folder
 
-    plt.savefig(f"animation/dataset{dataset}/UNOPTIMIZED_slam_map_dataset{dataset}_{l}.png", dpi=300, bbox_inches='tight')
+    plt.savefig(f"dataset{dataset}/UNOPTIMIZED_slam_map_dataset{dataset}_overall.png", dpi=300, bbox_inches='tight')
     plt.show(block=False)
 
     # --- 圖 B: 重建前 (純 Texture Map) ---
@@ -528,7 +529,7 @@ for l in range(frame_num):
     plt.imshow(color_map_unopt, origin='lower') 
     plt.title("UNOPTIMIZED Pure Texture Map")
     plt.axis("off")
-    plt.savefig(f"animation/dataset{dataset}/UNOPTIMIZED_pure_texture_dataset{dataset}_{l}.png", dpi=300, bbox_inches='tight')
+    plt.savefig(f"dataset{dataset}/UNOPTIMIZED_pure_texture_dataset{dataset}_overall.png", dpi=300, bbox_inches='tight')
     plt.show(block=False)
     plt.close()
 
@@ -637,7 +638,7 @@ for l in range(frame_num):
     plt.title("OPTIMIZED SLAM Map + RGB Floor")
     plt.legend()
     plt.axis("off")
-    plt.savefig(f"animation/dataset{dataset}/FINAL_optimized_slam_map_dataset{dataset}_{l}.png", dpi=300, bbox_inches='tight')
+    plt.savefig(f"dataset{dataset}/FINAL_optimized_slam_map_dataset{dataset}_overall.png", dpi=300, bbox_inches='tight')
     plt.show(block=False)
     plt.close()
 
@@ -646,7 +647,7 @@ for l in range(frame_num):
     plt.imshow(color_map, origin='lower') 
     plt.title("OPTIMIZED Pure Texture Map")
     plt.axis("off")
-    plt.savefig(f"animation/dataset{dataset}/FINAL_optimized_pure_texture_dataset{dataset}_{l}.png", dpi=300, bbox_inches='tight')
+    plt.savefig(f"dataset{dataset}/FINAL_optimized_pure_texture_dataset{dataset}_overall.png", dpi=300, bbox_inches='tight')
     plt.show(block=False)
     plt.close()
     # ==========================================================
@@ -689,6 +690,6 @@ for l in range(frame_num):
     plt.title("Trajectory Comparison")
     plt.grid(True)
     plt.axis("equal") 
-    plt.savefig(f"animation/dataset{dataset}/FINAL_trajectory_comparison_dataset{dataset}_{l}.png", dpi=300, bbox_inches='tight')
+    plt.savefig(f"dataset{dataset}/FINAL_trajectory_comparison_dataset{dataset}_overall.png", dpi=300, bbox_inches='tight')
     plt.show(block=False) # 最後這個設為 True，讓所有圖片視窗可以一起停留
     plt.close('all')
