@@ -1,5 +1,4 @@
 import os
-
 import gtsam
 import math as m
 import numpy as np
@@ -79,10 +78,6 @@ point_clouds = np.stack((point_clouds_x, point_clouds_y), axis=-1)
 idx_lidar = align_closest(lidar_stamps, data["rgb_stamps"])
 idx_disp = align_closest(data["disp_stamps"], data["rgb_stamps"])
 def draw_car(ax, x, y, yaw, size=0.5, color='red'):
-    """
-    在指定的座標軸 (ax) 上畫一個代表車體方向的三角形
-    size: 控制車子的大小 (單位與你的 x, y 相同)
-    """
     pt_front = [x + size * np.cos(yaw), 
                 y + size * np.sin(yaw)]
     pt_left  = [x - (size/2) * np.cos(yaw) - (size/2.5) * np.sin(yaw), 
@@ -105,7 +100,7 @@ def printimage(i):
         img = cv2.imread(f"data/dataRGBD/RGB{dataset}/rgb{dataset}_{i}.png")
         if img is None:
             print(f"[Warning] Missing RGB image for scan {i}. Skipping color.")
-            img = np.zeros((480, 640, 3), dtype=np.uint8) # 建立虛擬畫布，防止後續 shape 錯誤
+            img = np.zeros((480, 640, 3), dtype=np.uint8) 
         else:
             img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
@@ -115,19 +110,15 @@ def printimage(i):
     disparity = cv2.imread(f"data/dataRGBD/Disparity{dataset}/disparity{dataset}_{i_disp}.png", cv2.IMREAD_UNCHANGED)
     if disparity is None:
         print(f"[Warning] Missing Disparity for scan {i}. Skipping color.")
-        disparity = np.zeros((480, 640, 3), dtype=np.uint8) # 建立虛擬畫布，防止後續 shape 錯誤
+        disparity = np.zeros((480, 640, 3), dtype=np.uint8)
         return None, None, None, None
         
     disp = disparity.astype(np.float32)
-    disparity = disparity[::ds, ::ds]  # 3. 降採樣 Disparity
+    disparity = disparity[::ds, ::ds]  
     H, W = disp.shape
-
-    # 3. 【關鍵降採樣】：只降採樣「座標網格」與「深度值」
     v, u = np.mgrid[0:H:ds, 0:W:ds].astype(np.float32) 
     disp_ds = disp[0:H:ds, 0:W:ds] 
     H_ds, W_ds = u.shape
-
-    # 4. 開始計算深度與座標 
     dd = -0.00304 * disp_ds + 3.31            
     depth = 1.03 / dd
     u_rgb = (526.37 * u + 19276.0 - 7877.07 * dd) / 585.051 
@@ -210,7 +201,6 @@ def icp_one_iteration_scipy(src_pts, dst_pts, T_init, max_corr_dist, tree):
     rmse = np.sqrt(np.mean(distances[mask]**2))
     
     inlier_distances = distances[mask]
-    variance = np.var(inlier_distances)
     return T_new, rmse, n_in
 def icp_loop(tree, A, B, T_init, max_corr):
     best_rmse = float("inf")
@@ -258,7 +248,7 @@ T_temp = np.eye(3)
 T_robot_lidar = np.eye(3)
 T_robot_lidar[:2, 2] = np.array([0.13323, 0])
 
-step = 10
+step = 5
 close_step = 5 # Moved up for scope availability
 frame_num = 1
 total_frames = len(lidar_stamps) - step*2
@@ -349,17 +339,17 @@ for l in range(frame_num):
         node_idx += 1
         initial.insert(node_idx, gtsam.Pose2(T_robot_new[0, 2], T_robot_new[1, 2], global_yaw))
         graph.add(gtsam.BetweenFactorPose2(node_idx-1, node_idx, gtsam.Pose2(T_robot_oldtonew[0, 2], T_robot_oldtonew[1, 2], yaw_dot_rob), ICP_noise))
-        # graph.add(gtsam.BetweenFactorPose2(node_idx-1, node_idx, gtsam.Pose2(x_true_dot, y_true_dot, yaw[i] * dt), odometry_noise))
+        graph.add(gtsam.BetweenFactorPose2(node_idx-1, node_idx, gtsam.Pose2(x_true_dot, y_true_dot, yaw[i] * dt), odometry_noise))
 
         # Loop Closure Detection for close poses
-        SEARCH_RADIUS = 1.5
-        MIN_LOOP_AGE = 20    
+        SEARCH_RADIUS = 3
+        MIN_LOOP_AGE = 15    
         for prev_idx in range(1, node_idx - MIN_LOOP_AGE):
             prev_pose = initial.atPose2(prev_idx)
-            
             dist = np.sqrt((T_robot_new[0, 2] - prev_pose.x())**2 + 
                         (T_robot_new[1, 2] - prev_pose.y())**2)
             if dist < SEARCH_RADIUS and node_idx > 60: # only start looking for loop closures after we have enough nodes
+            # if dist < SEARCH_RADIUS and node_idx > 60: # only start looking for loop closures after we have enough nodes
                 print(f"find candidate {node_idx} near previous node {prev_idx}")
                 dx_enc = T_robot_new[0, 2] - prev_pose.x()
                 dy_enc = T_robot_new[1, 2] - prev_pose.y()
@@ -386,28 +376,11 @@ for l in range(frame_num):
                 T_best_near, icp_ok, rmse = icp_loop(tree_loop, A_loop, B, T_init, max_corr = 2)     
                 BtoA = (T_best_near[:2, :2] @ B.T).T + T_best_near[:2, 2]
 
-                if icp_ok and rmse < 0.15:
+                if icp_ok and rmse < 0.1:
                     graph.add(gtsam.BetweenFactorPose2(prev_idx, node_idx, gtsam.Pose2(T_best_near[0, 2], T_best_near[1, 2], np.arctan2(T_best_near[1, 0], T_best_near[0, 0])), loop_noise))
                     print(f"Loop closure added between node {node_idx} and node {prev_idx} with rmse {rmse:.4f}")
-                    # print("loop closure Success at global position", T_robot_new[0, 2], T_robot_new[1, 2])
-                    # plot A and BtoA for debugging
-                    # plt.figure(figsize=(8, 8))
-                    # plt.scatter(A_loop[:, 0], A_loop[:, 1], s=5, label="A (Previous Scan)", alpha=0.5)
-                    # plt.scatter(BtoA[:, 0], BtoA[:, 1], s=5, label="B transformed to A (Current Scan)", alpha=0.5)      
-                    # plt.title(f"Loop Closure ICP between Node {prev_idx} and Node {node_idx}\nRMSE: {rmse:.4f}")
-                    # plt.legend()
-                    # plt.axis("equal")
-                    # plt.show(block=False)
                     count_success += 1
                 else:
-                    # plot A and BtoA for debugging
-                    # plt.figure(figsize=(8, 8))
-                    # plt.scatter(A_loop[:, 0], A_loop[:, 1], s=5, label="A (Previous Scan)", alpha=0.5)
-                    # plt.scatter(BtoA[:, 0], BtoA[:, 1], s=5, label="B transformed to A (Current Scan)", alpha=0.5)      
-                    # plt.title(f"Loop Closure ICP between Node {prev_idx} and Node {node_idx}\nRMSE: {rmse:.4f}")
-                    # plt.legend()
-                    # plt.axis("equal")
-                    # plt.show(block=True)
                     print(f"Loop closure ICP failed between node {node_idx} and node {prev_idx}. rmse: {rmse:.4f}")
         #add loop closure with fixed step to close previous loop           
         if node_idx % close_step == 1: 
@@ -442,7 +415,7 @@ for l in range(frame_num):
             B_local = point_clouds[:, idex_curr, :][mask_B] 
             tree_local = KDTree(A_local)
             T_best_10 , icp_ok, rmse = icp_loop(tree_local, A_local, B_local, T_init, max_corr = 0.5)    
-            if not icp_ok or rmse > 0.15:
+            if not icp_ok or rmse > 0.1:
                 print("ICP failed for loop closure for fixed timestep.")
             else:
                 T_robot_oldtnew_10 = T_robot_lidar @ T_best_10 @ np.linalg.inv(T_robot_lidar) 
@@ -491,8 +464,7 @@ for l in range(frame_num):
     os.makedirs(f"dataset{dataset}", exist_ok=True)
     grid_map_pmf = 1.0 / (1.0 + np.exp(-grid_map)) 
     # ==========================================================
-    # 1. 繪製「重建前 (Unoptimized)」的 SLAM 地圖與軌跡
-    # ==========================================================
+
     print("Plotting UNOPTIMIZED maps...")
     grid_map_pmf_unopt = 1.0 / (1.0 + np.exp(-grid_map))
 
@@ -501,11 +473,10 @@ for l in range(frame_num):
     color_map_unopt = color_map.copy()
     color_map_unopt[~free_unopt] = 0.0 
 
-    # --- 圖 A: 重建前 (網格 + 軌跡 + 彩色地板) ---
     plt.figure(figsize=(10, 10))
     grid_cmap = LinearSegmentedColormap.from_list("occ_grid", [(0.0, "white"), (0.5, "lightgray"), (1.0, "black")])
     plt.imshow(grid_map_pmf_unopt, cmap=grid_cmap, vmin=0, vmax=1, origin='lower')
-    ax = plt.gca() # 取得目前的座標軸
+    ax = plt.gca() 
     x_px = x / grid_res + offset
     y_px = y / grid_res + offset
     mask_x = (x != 0) | (y != 0)
@@ -525,7 +496,6 @@ for l in range(frame_num):
 
     # --- 圖 B: 重建前 (純 Texture Map) ---
     plt.figure(figsize=(10, 10))
-    # 直接畫出彩色地圖，origin='lower' 保持座標系一致
     plt.imshow(color_map_unopt, origin='lower') 
     plt.title("UNOPTIMIZED Pure Texture Map")
     plt.axis("off")
@@ -534,8 +504,6 @@ for l in range(frame_num):
     plt.close()
 
 
-    # ==========================================================
-    # 2. 執行 GTSAM 優化
     # ==========================================================
     print("Running GTSAM Optimization...")
     result = gtsam.LevenbergMarquardtOptimizer(graph, initial).optimize()
@@ -548,8 +516,6 @@ for l in range(frame_num):
     estimated_poses = np.array(estimated_poses)
     estimated_poses_px = estimated_poses[:, :2] / grid_res + offset
 
-    # ==========================================================
-    # 3. 清空舊地圖，準備重建 (Rebuild Map)
     # ==========================================================
     print("Rebuilding maps using optimized poses...")
     grid_map = np.zeros((map_dim, map_dim))
@@ -596,8 +562,6 @@ for l in range(frame_num):
         for grid_x, grid_y in points_px:
             if 0 <= grid_x < map_dim and 0 <= grid_y < map_dim:
                 grid_map[grid_y, grid_x] += log_odds
-                
-        # 取 RGB-D
         ret = printimage(scan_idx)
         if ret[0] is not None:
             xc, yc, zc, colors = ret
@@ -616,12 +580,9 @@ for l in range(frame_num):
     print("Map Rebuilding Complete!")
 
     # ==========================================================
-    # 4. 繪製「重建後 (Optimized)」的 SLAM 地圖與軌跡
-    # ==========================================================
     occupied_opt = grid_map_pmf_opt > 0.7      
     free_opt     = grid_map_pmf_opt < 0.3
     color_map[~free_opt] = 0.0
-    # --- 圖 C: 重建後 (網格 + 軌跡 + 彩色地板) ---
     plt.figure(figsize=(10, 10))
     plt.imshow(grid_map_pmf_opt, cmap=grid_cmap, vmin=0, vmax=1, origin='lower')
     plt.plot(estimated_poses_px[:, 0], estimated_poses_px[:, 1], label="GTSAM Optimized Trajectory", color="green", linewidth=2)
@@ -641,8 +602,6 @@ for l in range(frame_num):
     plt.savefig(f"dataset{dataset}/FINAL_optimized_slam_map_dataset{dataset}_overall.png", dpi=300, bbox_inches='tight')
     plt.show(block=False)
     plt.close()
-
-    # --- 圖 D: 重建後 (純 Texture Map) ---
     plt.figure(figsize=(10, 10))
     plt.imshow(color_map, origin='lower') 
     plt.title("OPTIMIZED Pure Texture Map")
@@ -651,25 +610,16 @@ for l in range(frame_num):
     plt.show(block=False)
     plt.close()
     # ==========================================================
-    # 5. 繪製軌跡比較圖 (Trajectory Comparison)
-    # ==========================================================
     print("Plotting trajectory comparison...")
     mask = (x_true != 0) & (y_true != 0)
 
-    # --- 圖 E: 軌跡比較圖 ---
     plt.figure(figsize=(10, 5))
     ax = plt.gca()
     plt.plot(estimated_poses[:, 0], estimated_poses[:, 1], label="GTSAM Optimized", color="green", linewidth=1.5)
     plt.plot(x[mask_x], y[mask_x], label="Odometry + ICP", color="blue", linewidth=1.5)
     plt.plot(x_true[mask], y_true[mask], label="Dead Reckoning (Encoder)", color="red", linewidth=1.5)
-
-    # 抓出目前 X 軸的總寬度 (公尺)
     x_span = ax.get_xlim()[1] - ax.get_xlim()[0]
-
-    # 讓車子的大小永遠保持在當前畫面寬度的 3%
     dynamic_size = x_span * 0.03 
-    
-    # 【關鍵修正】：使用公尺座標 (estimated_poses) 而不是像素座標 (estimated_poses_px)
     metric_final_x = estimated_poses[-1, 0]
     metric_final_y = estimated_poses[-1, 1]
 
@@ -691,5 +641,17 @@ for l in range(frame_num):
     plt.grid(True)
     plt.axis("equal") 
     plt.savefig(f"dataset{dataset}/FINAL_trajectory_comparison_dataset{dataset}_overall.png", dpi=300, bbox_inches='tight')
-    plt.show(block=False) # 最後這個設為 True，讓所有圖片視窗可以一起停留
+    plt.show(block=False) 
     plt.close('all')
+    #plot only odometry
+    # plt.figure(figsize=(10, 5))     
+    # plt.plot(x_true[mask_x], y_true[mask_x], label="Odometry + ICP", color="blue", linewidth=1.5)
+    # plt.xlabel("X (m)")
+    # plt.ylabel("Y (m)")
+    # plt.legend()
+    # plt.title("Odometry using Encoder and ICP Trajectory")
+    # plt.grid(True)
+    # plt.axis("equal")
+    # plt.savefig(f"dataset{dataset}/odometry_icp_trajectory_dataset{dataset}_overall.png", dpi=300, bbox_inches='tight')
+    # plt.show(block=True)
+    # plt.close()
