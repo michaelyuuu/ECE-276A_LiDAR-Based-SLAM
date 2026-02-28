@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap
 from load_data import load_dataset
 
-dataset = 21
+dataset = 20
 data = load_dataset(dataset, data_dir="data")
 imu_angular_velocity = data["imu_angular_velocity"]
 print(type(imu_angular_velocity), len(imu_angular_velocity) if hasattr(imu_angular_velocity, "__len__") else "no len")
