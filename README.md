@@ -17,7 +17,7 @@ result/             # Generated outputs (maps, logs)
 - `code/main.py` – Entry point for the SLAM system: loads synchronized data, downsamples the LiDAR sweep, estimates odometry from wheel encoders, refines poses with ICP (using scipy + KDTree), adds loop closure factors, solves a gtsam pose graph, and paints an occupancy grid with projected RGB colors.
 - `code/load_data.py` – Convenience loader that aligns encoder, IMU, LiDAR, disparity, and RGB timestamps for dataset 20/21 and exposes sensor arrays. Run this script standalone to inspect timestamp alignment and project Kinect disparity into robot-frame points.
 - `code/utils.py` – Supporting utilities for visualizing canonical object models and ICP output using Open3D.
-- `code/icp_warm_up/test_icp_ver3.py` – ICP Warm-up Ver3: Advanced point cloud registration testing and validation script. Uses pre-loaded point cloud data for drill and liquid container objects, implements iterative closest point (ICP) alignment, and benchmarks registration accuracy against ground truth model data. Useful for validating ICP convergence, debugging registration failures, and testing different point cloud preprocessing strategies.
+
 
 ## Data Organization
 
